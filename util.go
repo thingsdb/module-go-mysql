@@ -62,7 +62,7 @@ func execQuery(_db _DB, ctx context.Context, req *reqMySQL) (interface{}, error)
 
 	var ret interface{}
 	switch fetch := req.Fetch; fetch {
-	case "LastInsertId":
+	case LastInsertId:
 		res, err := stmt.ExecContext(ctx, req.Params...)
 		if err != nil {
 			return nil, fmt.Errorf("Query has failed: %s", err)
@@ -72,7 +72,7 @@ func execQuery(_db _DB, ctx context.Context, req *reqMySQL) (interface{}, error)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get last insert ID: %s", err)
 		}
-	case "RowsAffected":
+	case RowsAffected:
 		res, err := stmt.ExecContext(ctx, req.Params...)
 		if err != nil {
 			return nil, fmt.Errorf("Query has failed: %s", err)
@@ -82,7 +82,7 @@ func execQuery(_db _DB, ctx context.Context, req *reqMySQL) (interface{}, error)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get affected rows: %s", err)
 		}
-	case "Columns":
+	case Columns:
 		rows, err := stmt.QueryContext(ctx, req.Params...)
 		if err != nil {
 			return nil, fmt.Errorf("Query has failed: %s", err)
@@ -93,7 +93,7 @@ func execQuery(_db _DB, ctx context.Context, req *reqMySQL) (interface{}, error)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get columns: %s", err)
 		}
-	case "Rows":
+	case Rows:
 		rows, err := stmt.QueryContext(ctx, req.Params...)
 		if err != nil {
 			return nil, fmt.Errorf("Query has failed: %s", err)
@@ -104,12 +104,6 @@ func execQuery(_db _DB, ctx context.Context, req *reqMySQL) (interface{}, error)
 		if err != nil {
 			return nil, err
 		}
-	// case "Row": // Need to no know columns
-		// row := stmt.QueryRowContext(ctx, req.Params...)
-		// err = row.Scan(&ret)
-		// if err != nil {
-		// 	return nil, err
-		// }
 	default:
 		return nil, fmt.Errorf("Fetch parameter unknown; valid options are `Columns`, `Rows`, `LastInsertId` or `RowsAffected`: %s", err)
 	}

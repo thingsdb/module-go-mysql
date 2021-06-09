@@ -45,7 +45,7 @@ type confMySQL struct {
 type reqMySQL struct {
 	Query   string `msgpack:"query"`
 	Params  []interface{} `msgpack:"params"`
-	Fetch string `msgpack:"fetch"` // []string?
+	Fetch Fetch `msgpack:"fetch"` // []string?
 	Transaction bool `msgpack:"transaction"`
 	Timeout int `msgpack:"timeout"`
 }
@@ -134,8 +134,6 @@ func onModuleReq(pkg *timod.Pkg) {
 	mux.Lock()
 	defer mux.Unlock()
 
-	// db.Stats()
-
 	if db == nil || db.Ping() != nil {
 		timod.WriteEx(
 			pkg.Pid,
@@ -154,6 +152,12 @@ func onModuleReq(pkg *timod.Pkg) {
 		return
 	}
 
+	if req.Fetch == DbStats {
+		ret := db.Stats()
+		timod.WriteResponse(pkg.Pid, ret)
+		return
+	}
+
 	if req.Query == "" {
 		timod.WriteEx(
 			pkg.Pid,
@@ -167,7 +171,6 @@ func onModuleReq(pkg *timod.Pkg) {
 	} else {
 		handleQuery(pkg, &req)
 	}
-	// Todo STATS
 }
 
 func handler(buf *timod.Buffer, quit chan bool) {
