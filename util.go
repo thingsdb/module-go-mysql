@@ -87,18 +87,29 @@ func execQuery(_db _DB, ctx context.Context, req *reqMySQL) (interface{}, error)
 		if err != nil {
 			return nil, fmt.Errorf("Query has failed: %s", err)
 		}
-		defer rows.Close() // ?????????
+		defer rows.Close()
 
-		ret, err = rows.Columns()
+		names, err := rows.Columns()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get columns: %s", err)
 		}
+		types, err := rows.ColumnTypes()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get column types: %s", err)
+		}
+
+		row := make(map[string]interface{})
+		for i, col := range names {
+			row[col] = types[i].DatabaseTypeName()
+		}
+		ret = row
+
 	case Rows:
 		rows, err := stmt.QueryContext(ctx, req.Params...)
 		if err != nil {
 			return nil, fmt.Errorf("Query has failed: %s", err)
 		}
-		defer rows.Close() // ?????????
+		defer rows.Close()
 
 		ret, err = returnRowsAsMap(rows)
 		if err != nil {
