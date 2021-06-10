@@ -116,7 +116,7 @@ func execQuery(_db _DB, ctx context.Context, req *reqMySQL) (interface{}, error)
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("Fetch parameter unknown; valid options are `Columns`, `Rows`, `LastInsertId` or `RowsAffected`: %s", err)
+		return nil, fmt.Errorf("Fetch parameter unknown; valid options are `Columns`, `Rows`, `LastInsertId`, `RowsAffected` or `DbStats`: %s", err)
 	}
 
 	return ret, nil
