@@ -34,21 +34,20 @@ import (
 var db *sql.DB = nil
 var mux sync.Mutex
 
-
 type confMySQL struct {
-	Dsn string         `msgpack:"dsn"`
-	ConnMaxLifetime int64         `msgpack:"conn_max_lifetime"`
-	MaxOpenConn int         `msgpack:"max_open_conn"`
-	MaxIdleConn  int `msgpack:"max_idle_conn"`
-	MaxIdleTimeConn  int `msgpack:"max_idle_time_conn"`
+	Dsn             string `msgpack:"dsn"`
+	ConnMaxLifetime int64  `msgpack:"conn_max_lifetime"`
+	MaxOpenConn     int    `msgpack:"max_open_conn"`
+	MaxIdleConn     int    `msgpack:"max_idle_conn"`
+	MaxIdleTimeConn int    `msgpack:"max_idle_time_conn"`
 }
 
 type reqMySQL struct {
-	Query   string `msgpack:"query"`
-	Params  []interface{} `msgpack:"params"`
-	Fetch Fetch `msgpack:"fetch"` // []string?
-	Transaction bool `msgpack:"transaction"`
-	Timeout int `msgpack:"timeout"`
+	Query       string        `msgpack:"query"`
+	Params      []interface{} `msgpack:"params"`
+	Fetch       Fetch         `msgpack:"fetch"` // []string?
+	Transaction bool          `msgpack:"transaction"`
+	Timeout     int           `msgpack:"timeout"`
 }
 
 func handleConf(config *confMySQL) {
@@ -64,14 +63,15 @@ func handleConf(config *confMySQL) {
 	if err != nil {
 		// TODO
 		timod.WriteConfErr()
-		panic(err.Error())  // Just for example purpose. You should use proper error handling instead of panic
+		panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
 	}
 
+	// TODO make optional
 	db.SetConnMaxLifetime(time.Minute * time.Duration(config.ConnMaxLifetime))
 	db.SetMaxOpenConns(config.MaxOpenConn)
 	db.SetMaxIdleConns(config.MaxIdleConn)
 
-	if config.MaxIdleTimeConn {
+	if config.MaxIdleTimeConn != 0 {
 		db.SetConnMaxIdleTime(time.Minute * time.Duration(config.MaxIdleTimeConn))
 	}
 
@@ -83,8 +83,8 @@ func handleQuery(pkg *timod.Pkg, req *reqMySQL) {
 		req.Timeout = 10
 	}
 
-	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout) * time.Second)
-    defer cancelfunc()
+	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
+	defer cancelfunc()
 
 	ret, err := execQuery(db, ctx, req)
 	if err != nil {
@@ -103,8 +103,8 @@ func handleTransaction(pkg *timod.Pkg, req *reqMySQL) {
 		req.Timeout = 10
 	}
 
-	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout) * time.Second)
-    defer cancelfunc()
+	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
+	defer cancelfunc()
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable}) // Tx options?
 	if err != nil {
 		timod.WriteEx(
