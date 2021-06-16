@@ -39,7 +39,7 @@ type confMySQL struct {
 	ConnMaxLifetime int64  `msgpack:"conn_max_lifetime"`
 	MaxOpenConn     int    `msgpack:"max_open_conn"`
 	MaxIdleConn     int    `msgpack:"max_idle_conn"`
-	MaxIdleTimeConn int    `msgpack:"max_idle_time_conn"`
+	MaxIdleTimeConn int64  `msgpack:"max_idle_time_conn"`
 }
 
 type reqMySQL struct {
@@ -66,10 +66,17 @@ func handleConf(config *confMySQL) {
 		panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
 	}
 
-	// TODO make optional
-	db.SetConnMaxLifetime(time.Minute * time.Duration(config.ConnMaxLifetime))
-	db.SetMaxOpenConns(config.MaxOpenConn)
-	db.SetMaxIdleConns(config.MaxIdleConn)
+	if config.MaxIdleTimeConn != 0 {
+		db.SetConnMaxLifetime(time.Minute * time.Duration(config.ConnMaxLifetime))
+	}
+
+	if config.MaxIdleTimeConn != 0 {
+		db.SetMaxOpenConns(config.MaxOpenConn)
+	}
+
+	if config.MaxIdleTimeConn != 0 {
+		db.SetMaxIdleConns(config.MaxIdleConn)
+	}
 
 	if config.MaxIdleTimeConn != 0 {
 		db.SetConnMaxIdleTime(time.Minute * time.Duration(config.MaxIdleTimeConn))
