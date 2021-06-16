@@ -61,9 +61,7 @@ func handleConf(config *confMySQL) {
 	var err error
 	db, err = sql.Open("mysql", config.Dsn)
 	if err != nil {
-		// TODO
 		timod.WriteConfErr()
-		panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
 	}
 
 	if config.MaxIdleTimeConn != 0 {
