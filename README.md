@@ -42,10 +42,10 @@ new_module('MySQL', 'module-go-mysql', {
 
 Argument | Type | Description
 -------- | ---- | -----------
-`dsn` | `string` (optional) |
-`conn_max_lifetime` | `integer` (time unit: minute) | Sets the maximum amount of time a connection may be reused.
-`max_idle_conn` | `integer` | Sets the maximum number of connections in the idle connection pool.
-`max_open_conn` | `integer` | Sets the maximum number of open connections to the database.
+`dsn` | `string` |
+`conn_max_lifetime` | `integer` (time unit: minute; optional) | Sets the maximum amount of time a connection may be reused.
+`max_idle_conn` | `integer` (optional) | Sets the maximum number of connections in the idle connection pool.
+`max_open_conn` | `integer` (optional) | Sets the maximum number of open connections to the database.
 `max_idle_time_conn` | `integer` (time unit: minute; optional) | Sets the maximum amount of time a connection may be idle.
 
 ## Using the module
