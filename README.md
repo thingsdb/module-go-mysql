@@ -29,7 +29,7 @@ default username and password combination.
 Run the following in the `@thingsdb` scope:
 
 ```
-// The values MUST be change according to your situation, this is just an example
+// The values MUST be changed according to your situation, this is just an example
 new_module('MySQL', 'module-go-mysql', {
     dsn: "anja:pass@/test",
     conn_max_lifetime: 3,

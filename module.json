@@ -1,0 +1,25 @@
+{
+    "doc": "https://github.com/thingsdb/module-go-mysql#readme",
+    "version": "0.1.0",
+    "main": {
+        "linux/386": "bin/mysql_linux_386.bin",
+        "linux/amd64": "bin/mysql_linux_amd64.bin",
+        "linux/arm": "bin/mysql_linux_arm.bin",
+        "linux/arm64": "bin/mysql_linux_arm64.bin",
+        "freebsd/386": "bin/mysql_freebsd_386.bin",
+        "freebsd/amd64": "bin/mysql_freebsd_amd64.bin",
+        "freebsd/arm": "bin/mysql_freebsd_arm.bin",
+        "freebsd/arm64": "bin/mysql_freebsd_arm64.bin",
+        "darwin/amd64": "bin/mysql_darwin_amd64.bin"
+    },
+    "exposes": {
+        "query": {
+            "doc": "Make a QUERY request; choose between insert, get or delete",
+            "defaults": {
+                "transaction": false,
+                "timeout": 10
+            },
+            "argmap": ["query", "params", "fetch", "transaction", "timeout"]
+        }
+    }
+}

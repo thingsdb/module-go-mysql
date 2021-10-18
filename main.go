@@ -1,21 +1,3 @@
-// Demo is a ThingsDB module which may be used as a template to build modules.
-//
-// This module simply extract a given `message` property from a request and
-// returns this message.
-//
-// For example:
-//
-//     // Create the module (@thingsdb scope)
-//     new_module('DEMO', 'demo', nil, nil);
-//
-//     // When the module is loaded, use the module in a future
-//     future({
-//       module: 'DEMO',
-//       message: 'Hi ThingsDB module!',
-//     }).then(|msg| {
-//	      `Got the message back: {msg}`
-//     });
-//
 package main
 
 import (
@@ -62,6 +44,7 @@ func handleConf(config *confMySQL) {
 	db, err = sql.Open("mysql", config.Dsn)
 	if err != nil {
 		timod.WriteConfErr()
+		return
 	}
 
 	if config.MaxIdleTimeConn != 0 {
