@@ -1,80 +1,73 @@
-# module-go-mysql
-ThingsDB module for communication with MySQL
+# MySQL ThingsDB Module (Go)
 
-## Building the module
+MySQL module written using the [Go language](https://golang.org). This module can be used to communicate with MySQL
 
-To build the MySQL module, make sure Go is installed and configured.
+## Installation
 
-First go to the module path and run the following command to install the module dependencies:
+Install the module by running the following command in the `@thingsdb` scope:
 
-```
-go mod tidy
-```
-
-Next, you are ready to build the module:
-
-```
-go build
+```javascript
+new_module('mysql', 'github.com/thingsdb/module-go-mysql');
 ```
 
-Copy the created binary file to the ThingsDB module path.
+Optionally, you can choose a specific version by adding a `@` followed with the release tag. For example: `@v0.1.0`.
 
-## Configure the module
+## Configuration
 
-The MySQL module must be configured before it can be used.
+The MySQL module requires a configuration with the following properties:
 
-In this example we will name the module `MySQL`. This name is arbitrary and can be anything you like. The example uses a database named `dbtest` with the
-default username and password combination.
+Property           | Type                              | Description
+-------------------| --------------------------------- | -----------
+dsn               | str (required)                    | Data source name; DSN format: `username:password@protocol(address)/dbname?param=value`
+conn_max_lifetime  | int (time unit: minute; optional) | Maximum amount of time a connection may be reused.
+max_idle_conn      | int (optional)                    | Maximum number of connections in the idle connection pool.
+max_open_conn      | int (optional)                    | Maximum number of open connections to the database.
+max_idle_time_conn | int (time unit: minute; optional) | Maximum amount of time a connection may be idle.
 
-Run the following in the `@thingsdb` scope:
+Example configuration:
 
-```
-// The values MUST be changed according to your situation, this is just an example
-new_module('MySQL', 'module-go-mysql', {
-    dsn: "anja:pass@/test",
+```javascript
+set_module_conf('siridb', {
+    dsn: "username:password@/dbname",
     conn_max_lifetime: 3,
     max_idle_conn: 10,
     max_open_conn: 1
 });
 ```
 
-### Arguments
+## Exposed functions
 
-Argument | Type | Description
--------- | ---- | -----------
-`dsn` | `string` |
-`conn_max_lifetime` | `integer` (time unit: minute; optional) | Sets the maximum amount of time a connection may be reused.
-`max_idle_conn` | `integer` (optional) | Sets the maximum number of connections in the idle connection pool.
-`max_open_conn` | `integer` (optional) | Sets the maximum number of open connections to the database.
-`max_idle_time_conn` | `integer` (time unit: minute; optional) | Sets the maximum amount of time a connection may be idle.
-
-## Using the module
+Name              | Description
+----------------- | -----------
+[query](#query)   | Run a GCD query.
 
 ### Query
 
+#### Arguments
+
+ Argument     | Type                                                  | Description
+------------- | ----------------------------------------------------- | -----------
+`query`       | `string` (required, except when `fetch` is `DbStats`) | Query string or template query string with `?`.
+`params`      | `array` (optional)                                    | The values that need to be inserted in the query at `?`.
+`fetch`       | `string` (optional)                                   | The way the result will be returned, options are: `Columns`, `Rows`, `DbStats`, `LastInsertId` or `RowsAffected`.
+`transaction` | `boolean` (optional)                                  | Indicates if the query needs to be wrapped in transaction statements or not.
+`timeout`     | `integer` (optional)                                  | Provide a custom timeout in seconds (Default: 10 seconds).
+
+#### Example:
+
+```javascript
+mysql.query(
+    'SELECT * FROM pet WHERE species = ?;',
+    ['dog'],
+    "Rows",
+    false,
+    30
+}).then(|res| {
+    res; // just return the response.
+});
 ```
-future({
-    module: 'MySQL',
-    query: 'SELECT * FROM pet WHERE species = ?;',
-    params: ['dog'],
-    fetch: "Rows",
-    transaction: false,
-    timeout: 30
-}).then(|res| res);
-```
 
-### Arguments
-
-Argument | Type | Description
--------- | ---- | -----------
-`module` | `string`| The module name.
-`query` | `string` (required, except when `fetch` is `DbStats`)| Query string or template query string with `?`.
-`params` | `array` (optional) | The values that need to be inserted in the query at `?`.
-`fetch` | `string` (optional) | The way the result will be returned, options are: `Columns`, `Rows`, `DbStats`, `LastInsertId` or `RowsAffected`.
-`transaction` | `boolean` (optional) | Indicates if the query needs to be wrapped in transaction statements or not.
-`timeout` | `integer` (optional) | Provide a custom timeout in seconds (Default: 10 seconds).
-
-### Fetch types
+#### Fetch types
 
 #### Columns
 
