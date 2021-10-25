@@ -27,7 +27,7 @@ max_idle_time_conn | int (time unit: minute; optional) | Maximum amount of time 
 Example configuration:
 
 ```javascript
-set_module_conf('siridb', {
+set_module_conf('mysql', {
     dsn: "username:password@/dbname",
     conn_max_lifetime: 3,
     max_idle_conn: 10,
