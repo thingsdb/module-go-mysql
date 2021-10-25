@@ -13,13 +13,34 @@
         "darwin/amd64": "bin/mysql_darwin_amd64.bin"
     },
     "exposes": {
-        "query": {
-            "doc": "Make a QUERY request; choose between insert, get or delete",
+        "get_db_stats": {
+            "doc": "Get the database statistics",
             "defaults": {
-                "transaction": false,
+                "get_db_stats": true,
                 "timeout": 10
             },
-            "argmap": ["query", "params", "fetch", "transaction", "timeout"]
+            "argmap": []
+        },
+        "insert_rows": {
+            "doc": "Insert rows and get back the last inserted ID and number of inserted rows",
+            "defaults": {
+                "timeout": 10
+            },
+            "argmap": ["insert_rows", "*"]
+        },
+        "query_rows": {
+            "doc": "Make a query request that returns rows",
+            "defaults": {
+                "timeout": 10
+            },
+            "argmap": ["query_rows", "*"]
+        },
+        "rows_affected": {
+            "doc": "Make a query request that returns the number of affected rows",
+            "defaults": {
+                "timeout": 10
+            },
+            "argmap": ["rows_affected", "*"]
         }
     }
 }

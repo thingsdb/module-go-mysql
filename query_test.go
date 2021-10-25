@@ -67,7 +67,7 @@ func newMySQL() error {
 	return nil
 }
 
-func TestExecQuery(t *testing.T) {
+func TestRunQuery(t *testing.T) {
 	tests := []struct {
 		name    string
 		request *reqMySQL
@@ -75,10 +75,11 @@ func TestExecQuery(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Check fetch Rows",
+			name: "Check QueryRows",
 			request: &reqMySQL{
-				Query:   "SELECT * FROM users WHERE name = 'Ted';",
-				Fetch:   Rows,
+				QueryRows: &QueryRows{
+					Query: "SELECT * FROM users WHERE name = 'Ted';",
+				},
 				Timeout: 10,
 			},
 			result: func(res interface{}) bool {
@@ -88,50 +89,57 @@ func TestExecQuery(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Check fetch Columns",
+			name: "Check InsertRows",
 			request: &reqMySQL{
-				Query:   "SELECT * FROM users;",
-				Fetch:   Columns,
+				InsertRows: &InsertRows{
+					Query:  "INSERT INTO users VALUES(?, ?);",
+					Params: []interface{}{4, "Lily"},
+				},
 				Timeout: 10,
 			},
 			result: func(res interface{}) bool {
-				resT, ok := res.(map[string]interface{})
-				return ok && resT["name"] == "VARCHAR"
-			},
-			wantErr: false,
-		},
-		{
-			name: "Check fetch LastInsertId",
-			request: &reqMySQL{
-				Query:   "INSERT INTO users VALUES(?, ?);",
-				Params:  []interface{}{4, "Lily"},
-				Fetch:   LastInsertId,
-				Timeout: 10,
-			},
-			result: func(res interface{}) bool {
-				_, ok := res.(int64)
+				str, ok := res.(string)
+				if ok {
+					return str == "1 row inserted, last inserted ID: 0"
+				}
 				return ok
 			},
 			wantErr: false,
 		},
 		{
-			name: "Check fetch RowsAffected",
+			name: "Check ",
 			request: &reqMySQL{
-				Query:   "UPDATE users SET name = 'Teddy' WHERE name = 'Ted';",
-				Fetch:   RowsAffected,
+				RowsAffected: &RowsAffected{
+					Query: "UPDATE users SET name = 'Teddy' WHERE name = 'Ted';",
+				},
 				Timeout: 10,
 			},
 			result: func(res interface{}) bool {
-				resT, ok := res.(int64)
-				return ok && resT == 1
+				str, ok := res.(string)
+				if ok {
+					return str == "1 row affected"
+				}
+				return ok
 			},
 			wantErr: false,
 		},
 		{
-			name: "Error unknown fetch type",
+			name: "Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`",
 			request: &reqMySQL{
-				Query:   "SELECT * FROM users;",
-				Fetch:   "Unknown",
+				Timeout: 10,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one",
+			request: &reqMySQL{
+				QueryRows: &QueryRows{
+					Query: "SELECT * FROM users WHERE name = 'Ted';",
+				},
+				InsertRows: &InsertRows{
+					Query:  "INSERT INTO users VALUES(?, ?);",
+					Params: []interface{}{5, "Siri"},
+				},
 				Timeout: 10,
 			},
 			wantErr: true,
@@ -139,8 +147,9 @@ func TestExecQuery(t *testing.T) {
 		{
 			name: "Error query syntax",
 			request: &reqMySQL{
-				Query:   "SELECT * FROM;",
-				Fetch:   "Unknown",
+				QueryRows: &QueryRows{
+					Query: "SELECT * FROM;",
+				},
 				Timeout: 10,
 			},
 			wantErr: true,
@@ -148,8 +157,9 @@ func TestExecQuery(t *testing.T) {
 		{
 			name: "Error unknown table",
 			request: &reqMySQL{
-				Query:   "SELECT * FROM users;",
-				Fetch:   "Unknown",
+				QueryRows: &QueryRows{
+					Query: "SELECT * FROM unknown;",
+				},
 				Timeout: 10,
 			},
 			wantErr: true,
@@ -163,10 +173,50 @@ func TestExecQuery(t *testing.T) {
 			db, cleanup := exampleSuite(t)
 			defer cleanup()
 
+			num := 0
+			var fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)
+			var q *Query
+			if tt.request.QueryRows != nil {
+				q = (*Query)(tt.request.QueryRows)
+				fn = tt.request.QueryRows.run
+				num++
+			}
+
+			if tt.request.InsertRows != nil {
+				q = (*Query)(tt.request.InsertRows)
+				fn = tt.request.InsertRows.run
+				num++
+			}
+
+			if tt.request.RowsAffected != nil {
+				q = (*Query)(tt.request.RowsAffected)
+				fn = tt.request.RowsAffected.run
+				num++
+			}
+
+			if tt.request.GetDBStats {
+				if num == 0 {
+					return
+				}
+				num++
+			}
+
+			if num == 0 {
+				return
+			}
+
+			if num > 1 {
+				return
+			}
+
+			if tt.request.Timeout == 0 {
+				tt.request.Timeout = 10
+			}
+
 			ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(tt.request.Timeout)*time.Second)
 			defer cancelfunc()
 
-			res, err := execQuery(db, ctx, tt.request)
+			res, err := q.runQuery(db, ctx, fn)
 
 			if tt.wantErr && err == nil {
 				assert.NotNil(t, err)

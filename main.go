@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -25,11 +24,11 @@ type confMySQL struct {
 }
 
 type reqMySQL struct {
-	Query       string        `msgpack:"query"`
-	Params      []interface{} `msgpack:"params"`
-	Fetch       Fetch         `msgpack:"fetch"` // []string?
-	Transaction bool          `msgpack:"transaction"`
-	Timeout     int           `msgpack:"timeout"`
+	GetDBStats   bool          `msgpack:"get_db_stats"`
+	InsertRows   *InsertRows   `msgpack:"insert_rows"`
+	QueryRows    *QueryRows    `msgpack:"query_rows"`
+	RowsAffected *RowsAffected `msgpack:"rows_affected"`
+	Timeout      int           `msgpack:"timeout"`
 }
 
 func handleConf(config *confMySQL) {
@@ -66,63 +65,6 @@ func handleConf(config *confMySQL) {
 	timod.WriteConfOk()
 }
 
-func handleQuery(pkg *timod.Pkg, req *reqMySQL) {
-	if req.Timeout == 0 {
-		req.Timeout = 10
-	}
-
-	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
-	defer cancelfunc()
-
-	ret, err := execQuery(db, ctx, req)
-	if err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			err.Error())
-		return
-	}
-
-	timod.WriteResponse(pkg.Pid, ret)
-}
-
-func handleTransaction(pkg *timod.Pkg, req *reqMySQL) {
-	if req.Timeout == 0 {
-		req.Timeout = 10
-	}
-
-	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
-	defer cancelfunc()
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable}) // Tx options?
-	if err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			fmt.Sprintf("Failed to start transaction: %s", err))
-		return
-	}
-	defer tx.Rollback() // The rollback will be ignored if the tx has been committed later in the function.
-
-	ret, err := execQuery(tx, ctx, req)
-	if err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			fmt.Sprintf("Failed to execute transaction: %s", err))
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			fmt.Sprintf("Failed to commit transaction: %s", err))
-		return
-	}
-
-	timod.WriteResponse(pkg.Pid, ret)
-}
-
 func onModuleReq(pkg *timod.Pkg) {
 	mux.Lock()
 	defer mux.Unlock()
@@ -145,25 +87,69 @@ func onModuleReq(pkg *timod.Pkg) {
 		return
 	}
 
-	if req.Fetch == DbStats {
-		ret := db.Stats()
-		timod.WriteResponse(pkg.Pid, ret)
+	num := 0
+	var fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)
+	var q *Query
+	if req.QueryRows != nil {
+		q = (*Query)(req.QueryRows)
+		fn = req.QueryRows.run
+		num++
+	}
+
+	if req.InsertRows != nil {
+		q = (*Query)(req.InsertRows)
+		fn = req.InsertRows.run
+		num++
+	}
+
+	if req.RowsAffected != nil {
+		q = (*Query)(req.RowsAffected)
+		fn = req.RowsAffected.run
+		num++
+	}
+
+	if req.GetDBStats {
+		if num == 0 {
+			ret := db.Stats()
+			timod.WriteResponse(pkg.Pid, ret)
+			return
+		}
+		num++
+	}
+
+	if num == 0 {
+		timod.WriteEx(
+			pkg.Pid,
+			timod.ExOperation,
+			"Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`")
 		return
 	}
 
-	if req.Query == "" {
+	if num > 1 {
 		timod.WriteEx(
 			pkg.Pid,
 			timod.ExBadData,
-			"Error: MySQL requires `query`")
+			"Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one")
 		return
 	}
 
-	if req.Transaction {
-		handleTransaction(pkg, &req)
-	} else {
-		handleQuery(pkg, &req)
+	if req.Timeout == 0 {
+		req.Timeout = 10
 	}
+
+	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
+	defer cancelfunc()
+
+	ret, err := q.runQuery(db, ctx, fn)
+	if err != nil {
+		timod.WriteEx(
+			pkg.Pid,
+			timod.ExOperation,
+			err.Error())
+		return
+	}
+
+	timod.WriteResponse(pkg.Pid, ret)
 }
 
 func handler(buf *timod.Buffer, quit chan bool) {

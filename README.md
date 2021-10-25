@@ -18,7 +18,7 @@ The MySQL module requires a configuration with the following properties:
 
 Property           | Type                              | Description
 -------------------| --------------------------------- | -----------
-dsn               | str (required)                    | Data source name; DSN format: `username:password@protocol(address)/dbname?param=value`
+dsn                | str (required)                    | Data source name; DSN format: `username:password@protocol(address)/dbname?param=value`
 conn_max_lifetime  | int (time unit: minute; optional) | Maximum amount of time a connection may be reused.
 max_idle_conn      | int (optional)                    | Maximum number of connections in the idle connection pool.
 max_open_conn      | int (optional)                    | Maximum number of open connections to the database.
