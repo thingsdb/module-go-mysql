@@ -122,7 +122,7 @@ func onModuleReq(pkg *timod.Pkg) {
 		timod.WriteEx(
 			pkg.Pid,
 			timod.ExOperation,
-			"Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`")
+			"Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`")
 		return
 	}
 
@@ -130,7 +130,7 @@ func onModuleReq(pkg *timod.Pkg) {
 		timod.WriteEx(
 			pkg.Pid,
 			timod.ExBadData,
-			"Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one")
+			"Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one")
 		return
 	}
 

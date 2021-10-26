@@ -8,10 +8,17 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+type Next struct {
+	InsertRows   *InsertRows   `msgpack:"insert_rows"`
+	QueryRows    *QueryRows    `msgpack:"query_rows"`
+	RowsAffected *RowsAffected `msgpack:"rows_affected"`
+	Next         *Transaction  `msgpack:"next"`
+}
+
 type Query struct {
 	Query  string        `msgpack:"query"`
 	Params []interface{} `msgpack:"params"`
-	Next   *Query        `msgpack:"next"`
+	Next   *Next         `msgpack:"next"`
 }
 
 type InsertRows Query
@@ -25,7 +32,7 @@ type _DB interface {
 func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)) ([]interface{}, error) {
 	stmt, err := _db.PrepareContext(ctx, query.Query)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to prepare query: %s", err)
+		return nil, err
 	}
 	defer stmt.Close() // Prepared statements take up server resources and should be closed after use.
 
@@ -38,14 +45,12 @@ func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.
 	res = append(res, ret)
 
 	if query.Next != nil {
-		next, err := query.Next.handleQuery(db, ctx, fn)
+		next, err := query.Next.next(db, ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		var res []interface{}
 		res = append(res, next...)
-		return res, nil
 	}
 
 	return res, nil
@@ -68,6 +73,44 @@ func (query *Query) handleTransaction(db *sql.DB, ctx context.Context, fn func(s
 	}
 
 	return ret, nil
+}
+
+func (query *Next) next(_db _DB, ctx context.Context) ([]interface{}, error) {
+	num := 0
+	var fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)
+	var q *Query
+	if query.QueryRows != nil {
+		q = (*Query)(query.QueryRows)
+		fn = query.QueryRows.run
+		num++
+	}
+
+	if query.InsertRows != nil {
+		q = (*Query)(query.InsertRows)
+		fn = query.InsertRows.run
+		num++
+	}
+
+	if query.RowsAffected != nil {
+		q = (*Query)(query.RowsAffected)
+		fn = query.RowsAffected.run
+		num++
+	}
+
+	if num == 0 {
+		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `rows_affected``")
+	}
+
+	if num > 1 {
+		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `rows_affected`, not more then one")
+	}
+
+	next, err := q.handleQuery(db, ctx, fn)
+	if err != nil {
+		return nil, err
+	}
+
+	return next, nil
 }
 
 func (query *QueryRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}, error) {

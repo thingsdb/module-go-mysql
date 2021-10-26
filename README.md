@@ -39,7 +39,7 @@ set_module_conf('mysql', {
 
 Name              | Description
 ----------------- | -----------
-[query](#query)   | Run a GCD query.
+[query](#query)   | Run a MySQL query.
 
 ### Query
 

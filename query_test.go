@@ -124,14 +124,14 @@ func TestRunQuery(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`",
+			name: "Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`",
 			request: &reqMySQL{
 				Timeout: 10,
 			},
 			wantErr: true,
 		},
 		{
-			name: "Error: GCD requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one",
+			name: "Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one",
 			request: &reqMySQL{
 				QueryRows: &QueryRows{
 					Query: "SELECT * FROM users WHERE name = 'Ted';",
@@ -216,7 +216,7 @@ func TestRunQuery(t *testing.T) {
 			ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(tt.request.Timeout)*time.Second)
 			defer cancelfunc()
 
-			res, err := q.runQuery(db, ctx, fn)
+			res, err := q.handleQuery(db, ctx, fn)
 
 			if tt.wantErr && err == nil {
 				assert.NotNil(t, err)
