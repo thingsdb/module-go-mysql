@@ -105,7 +105,7 @@ mysql.get_db_stats().then(|res| {
 
 ```javascript
 mysql.insert_rows({
-    query: 'INSERT INTO pet VALUES('?', '?');',
+    query: 'INSERT INTO pet VALUES(?, ?);',
     params: ['Fleddy', 'dog'],
 }).then(|res| {
     res; // just return the response.
