@@ -9,10 +9,10 @@ import (
 )
 
 type Next struct {
+	AffectedRows *AffectedRows `msgpack:"affected_rows"`
 	InsertRows   *InsertRows   `msgpack:"insert_rows"`
+	Next         *Next         `msgpack:"next"`
 	QueryRows    *QueryRows    `msgpack:"query_rows"`
-	RowsAffected *RowsAffected `msgpack:"rows_affected"`
-	Next         *Transaction  `msgpack:"next"`
 }
 
 type Query struct {
@@ -23,7 +23,7 @@ type Query struct {
 
 type InsertRows Query
 type QueryRows Query
-type RowsAffected Query
+type AffectedRows Query
 
 type _DB interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
@@ -91,18 +91,18 @@ func (query *Next) next(_db _DB, ctx context.Context) ([]interface{}, error) {
 		num++
 	}
 
-	if query.RowsAffected != nil {
-		q = (*Query)(query.RowsAffected)
-		fn = query.RowsAffected.run
+	if query.AffectedRows != nil {
+		q = (*Query)(query.AffectedRows)
+		fn = query.AffectedRows.run
 		num++
 	}
 
 	if num == 0 {
-		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `rows_affected``")
+		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `affected_rows``")
 	}
 
 	if num > 1 {
-		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `rows_affected`, not more then one")
+		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `affected_rows`, not more then one")
 	}
 
 	next, err := q.handleQuery(db, ctx, fn)
@@ -139,27 +139,27 @@ func (query *InsertRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}, 
 		return nil, fmt.Errorf("Failed to get last insert ID: %s", err)
 	}
 
-	rowsAffected, err := res.RowsAffected()
+	affectedRows, err := res.RowsAffected()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get affected rows: %s", err)
 	}
 
-	returnMessage := fmt.Sprintf("%s inserted, last inserted ID: %d", retMsg(rowsAffected), lastInsertId)
+	returnMessage := fmt.Sprintf("%s inserted, last inserted ID: %d", retMsg(affectedRows), lastInsertId)
 	return returnMessage, nil
 }
 
-func (query *RowsAffected) run(stmt *sql.Stmt, ctx context.Context) (interface{}, error) {
+func (query *AffectedRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}, error) {
 	res, err := stmt.ExecContext(ctx, query.Params...)
 	if err != nil {
 		return nil, fmt.Errorf("Query has failed: %s", err)
 	}
 
-	rowsAffected, err := res.RowsAffected()
+	affectedRows, err := res.RowsAffected()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get affected rows: %s", err)
 	}
 
-	returnMessage := fmt.Sprintf("%s affected", retMsg(rowsAffected))
+	returnMessage := fmt.Sprintf("%s affected", retMsg(affectedRows))
 	return returnMessage, nil
 }
 

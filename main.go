@@ -24,10 +24,10 @@ type confMySQL struct {
 }
 
 type reqMySQL struct {
+	AffectedRows *AffectedRows `msgpack:"affected_rows"`
 	GetDBStats   bool          `msgpack:"get_db_stats"`
 	InsertRows   *InsertRows   `msgpack:"insert_rows"`
 	QueryRows    *QueryRows    `msgpack:"query_rows"`
-	RowsAffected *RowsAffected `msgpack:"rows_affected"`
 	Timeout      int           `msgpack:"timeout"`
 	Transaction  bool          `msgpack:"transaction"`
 }
@@ -103,9 +103,9 @@ func onModuleReq(pkg *timod.Pkg) {
 		num++
 	}
 
-	if req.RowsAffected != nil {
-		q = (*Query)(req.RowsAffected)
-		fn = req.RowsAffected.run
+	if req.AffectedRows != nil {
+		q = (*Query)(req.AffectedRows)
+		fn = req.AffectedRows.run
 		num++
 	}
 
@@ -122,7 +122,7 @@ func onModuleReq(pkg *timod.Pkg) {
 		timod.WriteEx(
 			pkg.Pid,
 			timod.ExOperation,
-			"Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`")
+			"Error: MySQL requires either `query_rows`, `insert_rows`, `affected_rows`, or `get_db_stats`")
 		return
 	}
 
@@ -130,7 +130,7 @@ func onModuleReq(pkg *timod.Pkg) {
 		timod.WriteEx(
 			pkg.Pid,
 			timod.ExBadData,
-			"Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one")
+			"Error: MySQL requires either `query_rows`, `insert_rows`, `affected_rows`, or `get_db_stats, not more then one")
 		return
 	}
 

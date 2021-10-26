@@ -22,7 +22,7 @@
             "argmap": []
         },
         "insert_rows": {
-            "doc": "Insert rows and get back the last inserted ID and number of inserted rows",
+            "doc": "Insert rows and get in return the last inserted ID and number of inserted rows",
             "defaults": {
                 "deep": 3,
                 "timeout": 10,
@@ -39,14 +39,14 @@
             },
             "argmap": ["query_rows", "transaction", "*"]
         },
-        "rows_affected": {
+        "affected_rows": {
             "doc": "Make a query request that returns the number of affected rows",
             "defaults": {
                 "deep": 3,
                 "timeout": 10,
                 "transaction": false
             },
-            "argmap": ["rows_affected", "transaction", "*"]
+            "argmap": ["affected_rows", "transaction", "*"]
         }
     }
 }

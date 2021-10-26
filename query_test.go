@@ -109,7 +109,7 @@ func TestRunQuery(t *testing.T) {
 		{
 			name: "Check ",
 			request: &reqMySQL{
-				RowsAffected: &RowsAffected{
+				AffectedRows: &AffectedRows{
 					Query: "UPDATE users SET name = 'Teddy' WHERE name = 'Ted';",
 				},
 				Timeout: 10,
@@ -124,14 +124,14 @@ func TestRunQuery(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats`",
+			name: "Error: MySQL requires either `query_rows`, `insert_rows`, `affected_rows`, or `get_db_stats`",
 			request: &reqMySQL{
 				Timeout: 10,
 			},
 			wantErr: true,
 		},
 		{
-			name: "Error: MySQL requires either `query_rows`, `insert_rows`, `rows_affected`, or `get_db_stats, not more then one",
+			name: "Error: MySQL requires either `query_rows`, `insert_rows`, `affected_rows`, or `get_db_stats, not more then one",
 			request: &reqMySQL{
 				QueryRows: &QueryRows{
 					Query: "SELECT * FROM users WHERE name = 'Ted';",
@@ -188,9 +188,9 @@ func TestRunQuery(t *testing.T) {
 				num++
 			}
 
-			if tt.request.RowsAffected != nil {
-				q = (*Query)(tt.request.RowsAffected)
-				fn = tt.request.RowsAffected.run
+			if tt.request.AffectedRows != nil {
+				q = (*Query)(tt.request.AffectedRows)
+				fn = tt.request.AffectedRows.run
 				num++
 			}
 
