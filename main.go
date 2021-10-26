@@ -29,6 +29,7 @@ type reqMySQL struct {
 	QueryRows    *QueryRows    `msgpack:"query_rows"`
 	RowsAffected *RowsAffected `msgpack:"rows_affected"`
 	Timeout      int           `msgpack:"timeout"`
+	Transaction  bool          `msgpack:"transaction"`
 }
 
 func handleConf(config *confMySQL) {
@@ -140,7 +141,13 @@ func onModuleReq(pkg *timod.Pkg) {
 	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
 	defer cancelfunc()
 
-	ret, err := q.runQuery(db, ctx, fn)
+	var ret interface{}
+	if req.Transaction {
+		ret, err = q.handleTransaction(db, ctx, fn)
+	} else {
+		ret, err = q.handleQuery(db, ctx, fn)
+	}
+
 	if err != nil {
 		timod.WriteEx(
 			pkg.Pid,

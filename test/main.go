@@ -24,41 +24,83 @@ func main() {
 	// executing
 	defer db.Close()
 
-	// perform a db.Query insert
-	stmt, err := db.Prepare("DELETE FROM pet WHERE name='test';")
+	tx, err := db.Begin() // Tx options?
 	if err != nil {
-		panic(err.Error())
+		fmt.Println(err.Error())
+	}
+	defer tx.Rollback() // The rollback will be ignored if the tx has been committed later in the function.
+
+	// perform a db.Query insert
+	stmt, err := db.Prepare("UPDATE users SET name='test' WHERE name='TEST';")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+
 	}
 	defer stmt.Close()
 
 	res, err := stmt.Exec()
 	// if there is an error inserting, handle it
 	if err != nil {
-		panic(err.Error())
+		fmt.Println(err.Error())
+		return
 	}
 
-	rows, err := stmt.Query()
-	// // be careful deferring Queries if you are using transactions
+	// perform a db.Query insert
+	stmt2, err := db.Prepare("UPDATE users SET name=@A WHERE name='TEST';")
 	if err != nil {
-		panic(err.Error())
-	}
+		fmt.Println(err.Error())
+		return
 
-	ret, err := returnRowsAsMap(rows)
+	}
+	defer stmt.Close()
+
+	res2, err := stmt2.Exec()
+	// if there is an error inserting, handle it
 	if err != nil {
-		panic(err.Error())
+		fmt.Println(err.Error())
+		return
 	}
 
-	lastInsertedID, err := res.LastInsertId()
-	if err != nil {
-		panic(err.Error())
+	if err := tx.Commit(); err != nil {
+		fmt.Println(err.Error())
 	}
 
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		panic(err.Error())
-	}
+	// // perform a db.Query insert
+	// stmt, err := db.Prepare("UPDATE users, (SELECT id, name FROM users) AS us SET users.name = 'siri' WHERE users.id = us.id;")
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+	// defer stmt.Close()
 
-	fmt.Println(res, rows, ret, lastInsertedID, rowsAffected)
+	// res, err := stmt.Exec()
+	// // if there is an error inserting, handle it
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+
+	// rows, err := stmt.Query()
+	// // // be careful deferring Queries if you are using transactions
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+
+	// ret, err := returnRowsAsMap(rows)
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+
+	// lastInsertedID, err := res.LastInsertId()
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+
+	// rowsAffected, err := res.RowsAffected()
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+
+	fmt.Println(res, res2)
 
 }
 

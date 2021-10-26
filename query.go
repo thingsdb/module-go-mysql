@@ -9,9 +9,9 @@ import (
 )
 
 type Query struct {
-	Query       string        `msgpack:"query"`
-	Params      []interface{} `msgpack:"params"`
-	Transaction bool          `msgpack:"transaction"`
+	Query  string        `msgpack:"query"`
+	Params []interface{} `msgpack:"params"`
+	Next   *Query        `msgpack:"next"`
 }
 
 type InsertRows Query
@@ -22,15 +22,7 @@ type _DB interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-func (query *Query) runQuery(db *sql.DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)) (interface{}, error) {
-	if query.Transaction {
-		return query.handleTransaction(db, ctx, fn)
-	} else {
-		return query.handleQuery(db, ctx, fn)
-	}
-}
-
-func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)) (interface{}, error) {
+func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)) ([]interface{}, error) {
 	stmt, err := _db.PrepareContext(ctx, query.Query)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to prepare query: %s", err)
@@ -42,7 +34,21 @@ func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.
 		return nil, err
 	}
 
-	return ret, nil
+	var res []interface{}
+	res = append(res, ret)
+
+	if query.Next != nil {
+		next, err := query.Next.handleQuery(db, ctx, fn)
+		if err != nil {
+			return nil, err
+		}
+
+		var res []interface{}
+		res = append(res, next...)
+		return res, nil
+	}
+
+	return res, nil
 }
 
 func (query *Query) handleTransaction(db *sql.DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)) (interface{}, error) {
