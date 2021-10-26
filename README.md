@@ -67,10 +67,6 @@ mysql.affected_rows({
 
 ### GetDbStats
 
-#### Arguments
-
-No arguments required.
-
 The following database statistics are returned:
 
 * Idle: the number of idle connections.
@@ -82,6 +78,10 @@ The following database statistics are returned:
 * OpenConnections: the number of established connections both in use and idle.
 * WaitCount: the total number of connections waited for.
 * WaitDuration: the total time blocked waiting for a new connection.
+
+#### Arguments
+
+No arguments required.
 
 #### Example:
 
