@@ -1,0 +1,52 @@
+{
+    "doc": "https://github.com/thingsdb/module-go-mysql#readme",
+    "version": "0.1.0",
+    "main": {
+        "linux/386": "bin/mysql_linux_386.bin",
+        "linux/amd64": "bin/mysql_linux_amd64.bin",
+        "linux/arm": "bin/mysql_linux_arm.bin",
+        "linux/arm64": "bin/mysql_linux_arm64.bin",
+        "freebsd/386": "bin/mysql_freebsd_386.bin",
+        "freebsd/amd64": "bin/mysql_freebsd_amd64.bin",
+        "freebsd/arm": "bin/mysql_freebsd_arm.bin",
+        "freebsd/arm64": "bin/mysql_freebsd_arm64.bin",
+        "darwin/amd64": "bin/mysql_darwin_amd64.bin"
+    },
+    "exposes": {
+        "get_db_stats": {
+            "doc": "Get the database statistics",
+            "defaults": {
+                "get_db_stats": true,
+                "timeout": 10
+            },
+            "argmap": []
+        },
+        "insert_rows": {
+            "doc": "Insert rows and get in return the last inserted ID and number of inserted rows",
+            "defaults": {
+                "deep": 3,
+                "timeout": 10,
+                "transaction": false
+            },
+            "argmap": ["insert_rows", "transaction", "*"]
+        },
+        "query_rows": {
+            "doc": "Make a query request that returns rows",
+            "defaults": {
+                "deep": 3,
+                "timeout": 10,
+                "transaction": false
+            },
+            "argmap": ["query_rows", "transaction", "*"]
+        },
+        "affected_rows": {
+            "doc": "Make a query request that returns the number of affected rows",
+            "defaults": {
+                "deep": 3,
+                "timeout": 10,
+                "transaction": false
+            },
+            "argmap": ["affected_rows", "transaction", "*"]
+        }
+    }
+}

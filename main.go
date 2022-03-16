@@ -1,27 +1,8 @@
-// Demo is a ThingsDB module which may be used as a template to build modules.
-//
-// This module simply extract a given `message` property from a request and
-// returns this message.
-//
-// For example:
-//
-//     // Create the module (@thingsdb scope)
-//     new_module('DEMO', 'demo', nil, nil);
-//
-//     // When the module is loaded, use the module in a future
-//     future({
-//       module: 'DEMO',
-//       message: 'Hi ThingsDB module!',
-//     }).then(|msg| {
-//	      `Got the message back: {msg}`
-//     });
-//
 package main
 
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -43,11 +24,12 @@ type confMySQL struct {
 }
 
 type reqMySQL struct {
-	Query       string        `msgpack:"query"`
-	Params      []interface{} `msgpack:"params"`
-	Fetch       Fetch         `msgpack:"fetch"` // []string?
-	Transaction bool          `msgpack:"transaction"`
-	Timeout     int           `msgpack:"timeout"`
+	AffectedRows *AffectedRows `msgpack:"affected_rows"`
+	GetDBStats   bool          `msgpack:"get_db_stats"`
+	InsertRows   *InsertRows   `msgpack:"insert_rows"`
+	QueryRows    *QueryRows    `msgpack:"query_rows"`
+	Timeout      int           `msgpack:"timeout"`
+	Transaction  bool          `msgpack:"transaction"`
 }
 
 func handleConf(config *confMySQL) {
@@ -62,6 +44,7 @@ func handleConf(config *confMySQL) {
 	db, err = sql.Open("mysql", config.Dsn)
 	if err != nil {
 		timod.WriteConfErr()
+		return
 	}
 
 	if config.MaxIdleTimeConn != 0 {
@@ -81,63 +64,6 @@ func handleConf(config *confMySQL) {
 	}
 
 	timod.WriteConfOk()
-}
-
-func handleQuery(pkg *timod.Pkg, req *reqMySQL) {
-	if req.Timeout == 0 {
-		req.Timeout = 10
-	}
-
-	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
-	defer cancelfunc()
-
-	ret, err := execQuery(db, ctx, req)
-	if err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			err.Error())
-		return
-	}
-
-	timod.WriteResponse(pkg.Pid, ret)
-}
-
-func handleTransaction(pkg *timod.Pkg, req *reqMySQL) {
-	if req.Timeout == 0 {
-		req.Timeout = 10
-	}
-
-	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
-	defer cancelfunc()
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable}) // Tx options?
-	if err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			fmt.Sprintf("Failed to start transaction: %s", err))
-		return
-	}
-	defer tx.Rollback() // The rollback will be ignored if the tx has been committed later in the function.
-
-	ret, err := execQuery(tx, ctx, req)
-	if err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			fmt.Sprintf("Failed to execute transaction: %s", err))
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			fmt.Sprintf("Failed to commit transaction: %s", err))
-		return
-	}
-
-	timod.WriteResponse(pkg.Pid, ret)
 }
 
 func onModuleReq(pkg *timod.Pkg) {
@@ -162,25 +88,75 @@ func onModuleReq(pkg *timod.Pkg) {
 		return
 	}
 
-	if req.Fetch == DbStats {
-		ret := db.Stats()
-		timod.WriteResponse(pkg.Pid, ret)
+	num := 0
+	var fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)
+	var q *Query
+	if req.QueryRows != nil {
+		q = (*Query)(req.QueryRows)
+		fn = req.QueryRows.run
+		num++
+	}
+
+	if req.InsertRows != nil {
+		q = (*Query)(req.InsertRows)
+		fn = req.InsertRows.run
+		num++
+	}
+
+	if req.AffectedRows != nil {
+		q = (*Query)(req.AffectedRows)
+		fn = req.AffectedRows.run
+		num++
+	}
+
+	if req.GetDBStats {
+		if num == 0 {
+			ret := db.Stats()
+			timod.WriteResponse(pkg.Pid, ret)
+			return
+		}
+		num++
+	}
+
+	if num == 0 {
+		timod.WriteEx(
+			pkg.Pid,
+			timod.ExOperation,
+			"Error: MySQL requires either `query_rows`, `insert_rows`, `affected_rows`, or `get_db_stats`")
 		return
 	}
 
-	if req.Query == "" {
+	if num > 1 {
 		timod.WriteEx(
 			pkg.Pid,
 			timod.ExBadData,
-			"Error: MySQL requires `query`")
+			"Error: MySQL requires either `query_rows`, `insert_rows`, `affected_rows`, or `get_db_stats, not more then one")
 		return
 	}
 
-	if req.Transaction {
-		handleTransaction(pkg, &req)
-	} else {
-		handleQuery(pkg, &req)
+	if req.Timeout == 0 {
+		req.Timeout = 10
 	}
+
+	ctx, cancelfunc := context.WithTimeout(context.Background(), time.Duration(req.Timeout)*time.Second)
+	defer cancelfunc()
+
+	var ret interface{}
+	if req.Transaction {
+		ret, err = q.handleTransaction(db, ctx, fn)
+	} else {
+		ret, err = q.handleQuery(db, ctx, fn)
+	}
+
+	if err != nil {
+		timod.WriteEx(
+			pkg.Pid,
+			timod.ExOperation,
+			err.Error())
+		return
+	}
+
+	timod.WriteResponse(pkg.Pid, ret)
 }
 
 func handler(buf *timod.Buffer, quit chan bool) {

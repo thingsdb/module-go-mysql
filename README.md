@@ -1,92 +1,73 @@
-# module-go-mysql
-ThingsDB module for communication with MySQL
+# MySQL ThingsDB Module (Go)
 
-## Building the module
+MySQL module written using the [Go language](https://golang.org). This module can be used to communicate with MySQL
 
-To build the MySQL module, make sure Go is installed and configured.
+## Installation
 
-First go to the module path and run the following command to install the module dependencies:
+Install the module by running the following command in the `@thingsdb` scope:
 
-```
-go mod tidy
-```
-
-Next, you are ready to build the module:
-
-```
-go build
+```javascript
+new_module('mysql', 'github.com/thingsdb/module-go-mysql');
 ```
 
-Copy the created binary file to the ThingsDB module path.
+Optionally, you can choose a specific version by adding a `@` followed with the release tag. For example: `@v0.1.0`.
 
-## Configure the module
+## Configuration
 
-The MySQL module must be configured before it can be used.
+The MySQL module requires a configuration with the following properties:
 
-In this example we will name the module `MySQL`. This name is arbitrary and can be anything you like. The example uses a database named `dbtest` with the
-default username and password combination.
+Property           | Type                              | Description
+-------------------| --------------------------------- | -----------
+dsn                | str (required)                    | Data source name; DSN format: `username:password@protocol(address)/dbname?param=value`
+conn_max_lifetime  | int (time unit: minute; optional) | Maximum amount of time a connection may be reused.
+max_idle_conn      | int (optional)                    | Maximum number of connections in the idle connection pool.
+max_open_conn      | int (optional)                    | Maximum number of open connections to the database.
+max_idle_time_conn | int (time unit: minute; optional) | Maximum amount of time a connection may be idle.
 
-Run the following in the `@thingsdb` scope:
+Example configuration:
 
-```
-// The values MUST be change according to your situation, this is just an example
-new_module('MySQL', 'module-go-mysql', {
-    dsn: "anja:pass@/test",
+```javascript
+set_module_conf('mysql', {
+    dsn: "username:password@/dbname",
     conn_max_lifetime: 3,
     max_idle_conn: 10,
     max_open_conn: 1
 });
 ```
 
-### Arguments
+## Exposed functions
 
-Argument | Type | Description
--------- | ---- | -----------
-`dsn` | `string` |
-`conn_max_lifetime` | `integer` (time unit: minute; optional) | Sets the maximum amount of time a connection may be reused.
-`max_idle_conn` | `integer` (optional) | Sets the maximum number of connections in the idle connection pool.
-`max_open_conn` | `integer` (optional) | Sets the maximum number of open connections to the database.
-`max_idle_time_conn` | `integer` (time unit: minute; optional) | Sets the maximum amount of time a connection may be idle.
+Name                            | Description
+------------------------------- | -----------
+[affected_rows](#affected_rows) | Make a query request that returns the number of affected rows.
+[get_db_stats](#get_db_stats)   | Get the database statistics.
+[insert_rows](#insert_rows)     | Insert rows and get in return the last inserted ID and number of inserted rows.
+[query_rows](#query_rows)       | Make a query request that returns a array with maps containing the column names and corresponding values.
 
-## Using the module
+### AffectedRows
 
-### Query
+#### Arguments
 
-```
-future({
-    module: 'MySQL',
-    query: 'SELECT * FROM pet WHERE species = ?;',
+ Argument       | Type                  | Description
+--------------- | --------------------- | -----------
+`affected_rows` | `Query` (required)    | Thing with `affected_rows` properties, see [Query](#Query).
+`transaction`   | `bool` (optional)     | Indicates if the query needs to be wrapped in transaction statements or not.
+`settings`      | `Settings` (optional) | Thing with `settings` properties, see [Settings](#Settings).
+
+#### Example:
+
+```javascript
+mysql.affected_rows({
+    query: 'UPDATE pet SET name='Marley' WHERE name='Fleddy';',
     params: ['dog'],
-    fetch: "Rows",
-    transaction: false,
-    timeout: 30
-}).then(|res| res);
+}, false, {deep: 1, timeout: 10}).then(|res| {
+    res; // just return the response.
+});
 ```
 
-### Arguments
+### GetDbStats
 
-Argument | Type | Description
--------- | ---- | -----------
-`module` | `string`| The module name.
-`query` | `string` (required, except when `fetch` is `DbStats`)| Query string or template query string with `?`.
-`params` | `array` (optional) | The values that need to be inserted in the query at `?`.
-`fetch` | `string` (optional) | The way the result will be returned, options are: `Columns`, `Rows`, `DbStats`, `LastInsertId` or `RowsAffected`.
-`transaction` | `boolean` (optional) | Indicates if the query needs to be wrapped in transaction statements or not.
-`timeout` | `integer` (optional) | Provide a custom timeout in seconds (Default: 10 seconds).
-
-### Fetch types
-
-#### Columns
-
-Returns a map containing the column names and corresponding column types.
-
-#### Rows
-
-Returns a array with maps containing the column names and corresponding values.
-
-#### Stats
-
-Returns the following database statistics:
+The following database statistics are returned:
 
 * Idle: the number of idle connections.
 * InUse: the number of connections currently in use.
@@ -98,10 +79,82 @@ Returns the following database statistics:
 * WaitCount: the total number of connections waited for.
 * WaitDuration: the total time blocked waiting for a new connection.
 
-#### LastInsertId
+#### Arguments
 
-Returns the integer generated by the database in response to a command. Typically this will be from an "auto increment" column when inserting a new row.
+No arguments required.
 
-#### RowsAffected
+#### Example:
 
-Returns the number of rows affected by an update, insert, or delete.
+```javascript
+mysql.get_db_stats().then(|res| {
+    res; // just return the response.
+});
+```
+
+### InsertRows
+
+#### Arguments
+
+ Argument     | Type                  | Description
+------------- | --------------------- | -----------
+`insert_rows` | `Query` (required)    | Thing with `insert_rows` properties, see [Query](#Query).
+`transaction` | `bool` (optional)     | Indicates if the query needs to be wrapped in transaction statements or not.
+`settings`    | `Settings` (optional) | Thing with `settings` properties, see [Settings](#Settings).
+
+#### Example:
+
+```javascript
+mysql.insert_rows({
+    query: 'INSERT INTO pet VALUES(?, ?);',
+    params: ['Fleddy', 'dog'],
+}).then(|res| {
+    res; // just return the response.
+});
+```
+
+### QueryRows
+
+#### Arguments
+
+ Argument     | Type                  | Description
+------------- | --------------------- | -----------
+`query_rows`  | `Query` (required)    | Thing with `query_rows` properties, see [Query](#Query).
+`transaction` | `bool` (optional)     | Indicates if the query needs to be wrapped in transaction statements or not.
+`settings`    | `Settings` (optional) | Thing with `settings` properties, see [Settings](#Settings).
+
+#### Example:
+
+```javascript
+mysql.query_rows({
+    query: 'SELECT * FROM pet WHERE species = ?;',
+    params: ['dog'],
+}).then(|res| {
+    res; // just return the response.
+});
+```
+
+### Types
+
+#### Query
+
+ Argument | Type                | Description
+--------- | ------------------- | -----------
+`query`   | `string` (required) | Query string or template query string with `?`.
+`params`  | `array` (optional)  | The values that need to be inserted in the query at `?`.
+`next`    | `Next` (optional)   | Thing with `next` properties, see [Next](#Next).
+
+#### Next
+
+ Argument       | Type               | Description
+--------------- | ------------------ | -----------
+`affected_rows` | `Query` (required) | Thing with `affected_rows` properties, see [Query](#Query).
+`insert_rows`   | `Query` (required) | Thing with `insert_rows` properties, see [Query](#Query).
+`query_rows`    | `Query` (required) | Thing with `query_rows` properties, see [Query](#Query).
+`next`          | `Next` (optional)  | Thing with `next` properties, see [Next](#Next).
+
+#### Settings
+
+ Argument | Type                 | Description
+--------- | -------------------- | -----------
+`deep`    | `int` (optional)     | Deep value of the thing with `affected_rows` properties (Default: 3).
+`timeout` | `integer` (optional) | Provide a custom timeout in seconds (Default: 10 seconds).
