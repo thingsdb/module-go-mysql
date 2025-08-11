@@ -1,6 +1,6 @@
 {
     "doc": "https://github.com/thingsdb/module-go-mysql#readme",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "main": {
         "linux/386": "bin/mysql_linux_386.bin",
         "linux/amd64": "bin/mysql_linux_amd64.bin",

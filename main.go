@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -70,21 +71,24 @@ func onModuleReq(pkg *timod.Pkg) {
 	mux.Lock()
 	defer mux.Unlock()
 
-	if db == nil || db.Ping() != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExOperation,
-			"Error: MySQL is not connected; please check the module configuration")
+	if db == nil {
+		errmsg := "Error: MySQL is not connected; please check the module configuration"
+		timod.WriteEx(pkg.Pid, timod.ExOperation, errmsg)
+		return
+	}
+
+	err := db.Ping()
+	if err != nil {
+		errmsg := fmt.Sprintf("Error: MySQL is unable to ping the server ... %v", err)
+		timod.WriteEx(pkg.Pid, timod.ExOperation, errmsg)
 		return
 	}
 
 	var req reqMySQL
-	err := msgpack.Unmarshal(pkg.Data, &req)
+	err = msgpack.Unmarshal(pkg.Data, &req)
 	if err != nil {
-		timod.WriteEx(
-			pkg.Pid,
-			timod.ExBadData,
-			"Error: Failed to unpack MySQL request")
+		errmsg := fmt.Sprintf("Error: Failed to unpack MySQL request ... %v", err)
+		timod.WriteEx(pkg.Pid, timod.ExBadData, errmsg)
 		return
 	}
 
