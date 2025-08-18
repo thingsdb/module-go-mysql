@@ -138,7 +138,7 @@ func TestRunQuery(t *testing.T) {
 				},
 				InsertRows: &InsertRows{
 					Query:  "INSERT INTO users VALUES(?, ?);",
-					Params: []interface{}{5, "Siri"},
+					Params: []any{5, "Siri"},
 				},
 				Timeout: 10,
 			},

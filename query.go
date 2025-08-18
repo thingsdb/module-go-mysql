@@ -16,9 +16,9 @@ type Next struct {
 }
 
 type Query struct {
-	Query  string        `msgpack:"query"`
-	Params []interface{} `msgpack:"params"`
-	Next   *Next         `msgpack:"next"`
+	Query  string `msgpack:"query"`
+	Params []any  `msgpack:"params"`
+	Next   *Next  `msgpack:"next"`
 }
 
 type InsertRows Query
@@ -29,7 +29,7 @@ type _DB interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)) ([]interface{}, error) {
+func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (any, error)) ([]any, error) {
 	stmt, err := _db.PrepareContext(ctx, query.Query)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.
 		return nil, err
 	}
 
-	var res []interface{}
+	var res []any
 	res = append(res, ret)
 
 	if query.Next != nil {
@@ -56,28 +56,28 @@ func (query *Query) handleQuery(_db _DB, ctx context.Context, fn func(stmt *sql.
 	return res, nil
 }
 
-func (query *Query) handleTransaction(db *sql.DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)) (interface{}, error) {
+func (query *Query) handleTransaction(db *sql.DB, ctx context.Context, fn func(stmt *sql.Stmt, ctx context.Context) (any, error)) (any, error) {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable}) // Tx options?
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start transaction: %s", err)
+		return nil, fmt.Errorf("failed to start transaction: %s", err)
 	}
 	defer tx.Rollback() // The rollback will be ignored if the tx has been committed later in the function.
 
 	ret, err := query.handleQuery(tx, ctx, fn)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to execute transaction: %s", err)
+		return nil, fmt.Errorf("failed to execute transaction: %s", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("Failed to commit transaction: %s", err)
+		return nil, fmt.Errorf("failed to commit transaction: %s", err)
 	}
 
 	return ret, nil
 }
 
-func (query *Next) next(_db _DB, ctx context.Context) ([]interface{}, error) {
+func (query *Next) next(_db _DB, ctx context.Context) ([]any, error) {
 	num := 0
-	var fn func(stmt *sql.Stmt, ctx context.Context) (interface{}, error)
+	var fn func(stmt *sql.Stmt, ctx context.Context) (any, error)
 	var q *Query
 	if query.QueryRows != nil {
 		q = (*Query)(query.QueryRows)
@@ -98,11 +98,11 @@ func (query *Next) next(_db _DB, ctx context.Context) ([]interface{}, error) {
 	}
 
 	if num == 0 {
-		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `affected_rows``")
+		return nil, fmt.Errorf("MySQL requires either `query_rows`, `insert_rows`, or `affected_rows``")
 	}
 
 	if num > 1 {
-		return nil, fmt.Errorf("Error: MySQL requires either `query_rows`, `insert_rows`, or `affected_rows`, not more then one")
+		return nil, fmt.Errorf("MySQL requires either `query_rows`, `insert_rows`, or `affected_rows`, not more then one")
 	}
 
 	next, err := q.handleQuery(db, ctx, fn)
@@ -113,10 +113,10 @@ func (query *Next) next(_db _DB, ctx context.Context) ([]interface{}, error) {
 	return next, nil
 }
 
-func (query *QueryRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}, error) {
+func (query *QueryRows) run(stmt *sql.Stmt, ctx context.Context) (any, error) {
 	rows, err := stmt.QueryContext(ctx, query.Params...)
 	if err != nil {
-		return nil, fmt.Errorf("Query has failed: %s", err)
+		return nil, fmt.Errorf("query has failed: %s", err)
 	}
 	defer rows.Close()
 
@@ -128,27 +128,27 @@ func (query *QueryRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}, e
 	return ret, nil
 }
 
-func (query *InsertRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}, error) {
+func (query *InsertRows) run(stmt *sql.Stmt, ctx context.Context) (any, error) {
 	res, err := stmt.ExecContext(ctx, query.Params...)
 	if err != nil {
-		return nil, fmt.Errorf("Query has failed: %s", err)
+		return nil, fmt.Errorf("query has failed: %s", err)
 	}
 
 	lastInsertId, err := res.LastInsertId()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get last insert ID: %s", err)
+		return nil, fmt.Errorf("failed to get last insert ID: %s", err)
 	}
 
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get affected rows: %s", err)
+		return nil, fmt.Errorf("failed to get affected rows: %s", err)
 	}
 
 	returnMessage := fmt.Sprintf("%s inserted, last inserted ID: %d", retMsg(affectedRows), lastInsertId)
 	return returnMessage, nil
 }
 
-func (query *AffectedRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}, error) {
+func (query *AffectedRows) run(stmt *sql.Stmt, ctx context.Context) (any, error) {
 	res, err := stmt.ExecContext(ctx, query.Params...)
 	if err != nil {
 		return nil, fmt.Errorf("Query has failed: %s", err)
@@ -156,37 +156,37 @@ func (query *AffectedRows) run(stmt *sql.Stmt, ctx context.Context) (interface{}
 
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get affected rows: %s", err)
+		return nil, fmt.Errorf("failed to get affected rows: %s", err)
 	}
 
 	returnMessage := fmt.Sprintf("%s affected", retMsg(affectedRows))
 	return returnMessage, nil
 }
 
-func returnRowsAsMap(rows *sql.Rows) (interface{}, error) {
+func returnRowsAsMap(rows *sql.Rows) (any, error) {
 	// Get column names
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get columns: %s", err)
+		return nil, fmt.Errorf("failed to get columns: %s", err)
 	}
 
 	// Make a slice for the values
 	values := make([]sql.RawBytes, len(columns))
-	scanArgs := make([]interface{}, len(values))
+	scanArgs := make([]any, len(values))
 	for i := range values {
 		scanArgs[i] = &values[i]
 	}
 
-	rowsMap := make([]map[string]interface{}, 0)
+	rowsMap := make([]map[string]any, 0)
 	for rows.Next() {
 		// get RawBytes from data
 		err = rows.Scan(scanArgs...)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to scan rows: %s", err)
+			return nil, fmt.Errorf("failed to scan rows: %s", err)
 		}
 
 		var value string
-		row := make(map[string]interface{})
+		row := make(map[string]any)
 		for i, col := range values {
 			// Here we can check if the value is nil (NULL value)
 			if col == nil {
