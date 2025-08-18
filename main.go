@@ -15,6 +15,7 @@ import (
 
 var db *sql.DB = nil
 var mux sync.Mutex
+var noPing bool = false
 
 type confMySQL struct {
 	Dsn             string `msgpack:"dsn"`
@@ -22,6 +23,7 @@ type confMySQL struct {
 	MaxOpenConn     int    `msgpack:"max_open_conn"`
 	MaxIdleConn     int    `msgpack:"max_idle_conn"`
 	MaxIdleTimeConn int64  `msgpack:"max_idle_time_conn"`
+	NoPing          bool   `msgpack:"no_ping"`
 }
 
 type reqMySQL struct {
@@ -48,20 +50,24 @@ func handleConf(config *confMySQL) {
 		return
 	}
 
-	if config.MaxIdleTimeConn != 0 {
+	if config.ConnMaxLifetime != 0 {
 		db.SetConnMaxLifetime(time.Minute * time.Duration(config.ConnMaxLifetime))
 	}
 
-	if config.MaxIdleTimeConn != 0 {
+	if config.MaxOpenConn != 0 {
 		db.SetMaxOpenConns(config.MaxOpenConn)
 	}
 
-	if config.MaxIdleTimeConn != 0 {
+	if config.MaxIdleConn != 0 {
 		db.SetMaxIdleConns(config.MaxIdleConn)
 	}
 
 	if config.MaxIdleTimeConn != 0 {
 		db.SetConnMaxIdleTime(time.Minute * time.Duration(config.MaxIdleTimeConn))
+	}
+
+	if config.NoPing {
+		noPing = true
 	}
 
 	timod.WriteConfOk()
@@ -77,15 +83,17 @@ func onModuleReq(pkg *timod.Pkg) {
 		return
 	}
 
-	err := db.Ping()
-	if err != nil {
-		errmsg := fmt.Sprintf("Error: MySQL is unable to ping the server ... %v", err)
-		timod.WriteEx(pkg.Pid, timod.ExOperation, errmsg)
-		return
+	if !noPing {
+		err := db.Ping()
+		if err != nil {
+			errmsg := fmt.Sprintf("Error: MySQL is unable to ping the server ... %v", err)
+			timod.WriteEx(pkg.Pid, timod.ExOperation, errmsg)
+			return
+		}
 	}
 
 	var req reqMySQL
-	err = msgpack.Unmarshal(pkg.Data, &req)
+	err := msgpack.Unmarshal(pkg.Data, &req)
 	if err != nil {
 		errmsg := fmt.Sprintf("Error: Failed to unpack MySQL request ... %v", err)
 		timod.WriteEx(pkg.Pid, timod.ExBadData, errmsg)
